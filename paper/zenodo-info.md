@@ -23,11 +23,17 @@ We train identical Transformer architectures on 6 sequences of varying complexit
 (2) Pseudo-random with state space 2³¹ (glibc LCG) is completely unlearnable (test accuracy = random guessing);
 (3) 31-bit LFSR exhibits partial Grokking—the model learns 1 bit of the sequence's pattern (50% accuracy) but cannot learn the remaining 7 bits.
 
+Model scale ablation (0.3M → 8M → 33M parameters) shows:
+- Larger models do NOT break the learnability boundary
+- 10x model even fails to learn the 1-bit pattern that small model learned (severe underfitting)
+- Conclusion: "It's not that the model is too small; it's that the pattern is too complex"
+
 These findings validate the core prediction of the Epiplexity paper (Finzi et al., 2026): information is observer-dependent; the same data presents different learnability to observers with different computational power.
 
 Key contributions:
 - Experimental identification of the learnability phase transition boundary (between state space 256 and 2³¹)
 - Discovery of "partial Grokking" phenomenon in LFSR-31 (learning only 1 bit of 8)
+- Model scale ablation proving boundary is task property, not capacity limitation
 - Connection between Epiplexity theory and Grokking manifold discovery
 
 Code and data: https://github.com/lmxxf/grokking-train-learnability
@@ -49,6 +55,8 @@ Code and data: https://github.com/lmxxf/grokking-train-learnability
 - Phase Transition
 - Transformer
 - Manifold Discovery
+- Model Scaling
+- Underfitting
 
 **Languages**: English
 
