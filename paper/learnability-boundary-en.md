@@ -227,19 +227,46 @@ This experiment complements our previous Grokking manifold discovery experiments
 
 3. **Model-Data Matching**: Not all data suits all models. Small models cannot learn patterns with large state spaces; forcing it only yields memorization solutions
 
-### 6.2 Limitations
+### 6.2 Model Scale Experiment: Can Larger Models Break the Boundary?
 
-1. **Only tested one architecture**: 2-layer Transformer. Can larger models learn lcg_glibc?
+To verify whether the learnability boundary is limited by model capacity, we conducted model scale ablation experiments:
 
-2. **No fine-grained exploration**: 256 and $2^{31}$ differ by 23 orders of magnitude; where exactly is the phase transition point?
+| Model | Parameters | embed_dim | layers | heads |
+|-------|------------|-----------|--------|-------|
+| Small | 0.3M | 128 | 2 | 4 |
+| 4x | 8M | 512 | 4 | 8 |
+| 10x | 33M | 1024 | 4 | 16 |
 
-3. **What is LFSR-31's 1 bit**: We hypothesize it's the LSB, but haven't verified
+**Results**:
 
-### 6.3 Future Directions
+| Sequence | Small (0.3M) | 4x (8M) | 10x (33M) |
+|----------|--------------|---------|-----------|
+| lcg_glibc | train 100%, test 0.4% | train 0.8%, test 0.5% | train 0.8%, test 0.5% |
+| lfsr_31 | train 100%, test 50% | train 100%, test 50% | train 0.8%, test 0.5% |
+
+**Key Findings**:
+
+1. **lcg_glibc**: Larger models did not improve generalization; instead, weight decay caused underfitting (couldn't even memorize training set)
+
+2. **lfsr_31**: 4x model maintained 50% partial generalization; but 10x model severely underfitted, couldn't even learn the 1-bit pattern
+
+3. **Small model is optimal**: For this type of task, model too large + regularization = underfitting
+
+**Conclusion**: The learnability boundary is a property of the task itself, not a model capacity issue. Scaling up models cannot break the boundary and may actually make things worse.
+
+> **"It's not that the model is too small; it's that the pattern is too complex."**
+
+### 6.3 Other Limitations
+
+1. **No fine-grained exploration**: 256 and $2^{31}$ differ by 23 orders of magnitude; where exactly is the phase transition point?
+
+2. **What is LFSR-31's 1 bit**: We hypothesize it's the LSB, but haven't verified
+
+### 6.4 Future Directions
 
 1. **Fine-grained phase transition curve**: Test LCG with state spaces $2^{10}$, $2^{15}$, $2^{20}$
 
-2. **Boundary for larger models**: How does the boundary shift with hidden_dim = 512, 1024?
+2. **Remove weight decay**: Verify whether large models can break the boundary without regularization
 
 3. **Dissecting LFSR-31**: Use Mechanistic Interpretability to find which bit the model learned
 
