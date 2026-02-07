@@ -1,0 +1,68 @@
+{
+  "periodic": {
+    "grok_step": null,
+    "grok_jump": null,
+    "oscillation_count": 9,
+    "phases": [
+      [
+        "grokking",
+        0,
+        0
+      ]
+    ],
+    "final_test_acc": 1.0,
+    "final_train_acc": 1.0
+  },
+  "lcg_simple": {
+    "grok_step": null,
+    "grok_jump": null,
+    "oscillation_count": 1,
+    "phases": [
+      [
+        "grokking",
+        0,
+        0
+      ]
+    ],
+    "final_test_acc": 1.0,
+    "final_train_acc": 1.0
+  },
+  "lfsr_5": {
+    "grok_step": null,
+    "grok_jump": null,
+    "oscillation_count": 18,
+    "phases": [
+      [
+        "grokking",
+        0,
+        0
+      ]
+    ],
+    "final_test_acc": 1.0,
+    "final_train_acc": 1.0
+  },
+  "lcg_glibc": {
+    "grok_step": null,
+    "grok_jump": null,
+    "oscillation_count": 20,
+    "phases": [],
+    "final_test_acc": 0.004149377593360996,
+    "final_train_acc": 1.0
+  },
+  "lfsr_31": {
+    "grok_step": null,
+    "grok_jump": null,
+    "oscillation_count": 19,
+    "phases": [],
+    "final_test_acc": 0.5016454428387466,
+    "final_train_acc": 0.9993322203672788
+  },
+  "csprng": {
+    "grok_step": null,
+    "grok_jump": null,
+    "oscillation_count": 21,
+    "phases": [],
+    "final_test_acc": 0.003290885677493204,
+    "final_train_acc": 0.010350584307178631
+  }
+}
