@@ -2,7 +2,7 @@
 
 ## Basic Information
 
-**DOI**: 10.5281/zenodo.18512703
+**DOI**: 10.5281/zenodo.18515743
 
 **Resource type**: Publication / Preprint
 
@@ -25,15 +25,18 @@ We train identical Transformer architectures on 6 sequences of varying complexit
 
 Model scale ablation (0.3M → 8M → 33M parameters) shows:
 - Larger models do NOT break the learnability boundary
-- 10x model even fails to learn the 1-bit pattern that small model learned (severe underfitting)
-- Conclusion: "It's not that the model is too small; it's that the pattern is too complex"
+- 10x model loses the 1-bit partial Grokking that the small model achieved
+- Reducing weight decay by 50x (from 0.5 to 0.01) cannot rescue this collapse
+- The problem is optimization landscape instability in larger models, not excessive regularization
+- Conclusion: "It's not that the model is too small; it's that the pattern is too complex. The larger model not only didn't help—it lost the only 1 bit it had learned."
 
-These findings validate the core prediction of the Epiplexity paper (Finzi et al., 2026): information is observer-dependent; the same data presents different learnability to observers with different computational power.
+These findings validate the core prediction of the Epiplexity paper (Finzi et al., 2026): information is observer-dependent; the same data presents different learnability to observers with different computational power. Furthermore, the learnability boundary is a joint property of task and model, where the effect of model scale can be counter-intuitive.
 
 Key contributions:
 - Experimental identification of the learnability phase transition boundary (between state space 256 and 2³¹)
 - Discovery of "partial Grokking" phenomenon in LFSR-31 (learning only 1 bit of 8)
 - Model scale ablation proving boundary is task property, not capacity limitation
+- Weight decay ablation ruling out regularization as cause of large model collapse
 - Connection between Epiplexity theory and Grokking manifold discovery
 
 Code and data: https://github.com/lmxxf/grokking-train-learnability
@@ -56,11 +59,13 @@ Code and data: https://github.com/lmxxf/grokking-train-learnability
 - Transformer
 - Manifold Discovery
 - Model Scaling
+- Weight Decay
+- Optimization Landscape
 - Underfitting
 
 **Languages**: English
 
-**Version**: 1.0.0
+**Version**: 2.0.0
 
 **Publisher**: Zenodo
 

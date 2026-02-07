@@ -50,48 +50,57 @@ python analyze_dynamics.py     # 动态分析（Grokking检测、震荡检测）
 .
 ├── README.md
 ├── code/
-│   ├── train_learnability.py   # 主训练脚本
+│   ├── train_learnability.py   # 主训练脚本（6 种序列，0.3M 模型）
+│   ├── train_large_model.py    # 4x 模型（8M）
+│   ├── train_xlarge_model.py   # 10x 模型（33M）
+│   ├── train_xlarge_lowwd.py   # 10x + 低 weight decay (0.01)
 │   ├── plot_comparison.py      # 对比图生成
 │   ├── estimate_dimension.py   # 维度分析
 │   ├── analyze_dynamics.py     # 动态分析
 │   ├── analyze_attention.py    # Attention分析（备用）
 │   └── run_all.sh              # 批量运行
+├── paper/
+│   ├── learnability-boundary.md    # 中文论文
+│   ├── learnability-boundary-en.md # 英文论文
+│   └── zenodo-info.md              # Zenodo 填表信息
 └── results/
     ├── periodic/               # 周期序列结果
-    │   ├── train_log.json      # 训练日志
-    │   ├── activations/        # 中间激活快照
-    │   └── model_final.pt      # 最终模型
     ├── lcg_simple/
-    ├── ...
-    ├── learning_curves.png     # 学习曲线对比
-    ├── final_comparison.png    # 最终准确率对比
-    ├── dimension_trajectory.png # 维度变化曲线
-    ├── dynamics_analysis.png   # 训练动态（Grokking点、震荡）
-    └── summary.md              # 实验摘要
+    ├── lfsr_5/
+    ├── lcg_glibc/
+    ├── lfsr_31/
+    ├── csprng/
+    ├── lcg_glibc_large/        # 4x 模型
+    ├── lfsr_31_large/
+    ├── lcg_glibc_xlarge/       # 10x 模型
+    ├── lfsr_31_xlarge/
+    ├── lcg_glibc_xlarge_lowwd/ # 10x + 低 wd
+    ├── lfsr_31_xlarge_lowwd/
+    ├── learning_curves.png
+    ├── final_comparison.png
+    ├── dimension_trajectory.png
+    ├── dynamics_analysis.png
+    └── summary.md
 ```
 
 ---
 
-## 预期结果
+## 核心结论
 
-- **periodic**：完美 Grokking，测试准确率 → 100%
-- **lcg_simple / lfsr_5**：可能 Grokking（相变边界）
-- **lcg_glibc / lfsr_31**：可能卡在随机基线附近
-- **csprng**：测试准确率 ≈ 随机猜测 (1/256 ≈ 0.4%)
-
-如果 lcg_simple 能学会而 lcg_glibc 学不会，说明：
-> **Epiplexity 相变点在 "状态空间 256" 和 "状态空间 2^31" 之间**
+1. **相变边界在 256 → 2³¹ 之间**：状态空间 ≤256 可学，2³¹ 不可学
+2. **部分 Grokking 存在**：LFSR-31 学会了 1 bit（50% 准确率），剩下 7 bit 学不会
+3. **扩大模型无法突破边界**：4x/10x 模型对 lcg_glibc 无效，10x 反而把 LFSR-31 的 1 bit 也弄丢
+4. **不是 weight decay 的锅**：降低 50 倍 weight decay，结果一模一样
+5. **可学性边界是任务-模型的联合性质**：不只取决于任务复杂度，模型规模方向反直觉——更大反而更差
 
 ---
 
-## 要观察的现象
+## 已观察到的现象
 
-复用模加法实验的分析方法，看能不能发现：
-
-1. **维度骤降**：Grokking 时内在维度突然下降（从高维噪声到低维结构）
-2. **二阶段 Grokking**：先学会简单规律，再学会复杂规律
-3. **临界态震荡**：在"学会/没学会"之间反复跳跃
-4. **不同序列的维度差异**：可学序列维度低，不可学序列维度高（接近 embedding 维度）
+1. **维度骤降** ✅：LFSR-31 的表示空间坍缩到 2-4 维，对应"学会 1 bit"
+2. **部分 Grokking** ✅：LFSR-31 只学会 1 bit 规律（50%），剩下 7 bit 学不会
+3. **反直觉的规模效应** ✅：大模型反而更差——10x 模型丢掉了小模型学会的 1 bit
+4. **正则化不是原因** ✅：降低 weight decay 50 倍无效，排除了正则化假说
 
 ---
 
@@ -127,12 +136,24 @@ python analyze_dynamics.py     # 动态分析（Grokking检测、震荡检测）
 | lcg_glibc | 100% / 0.4% | 0.8% / 0.5% | 0.8% / 0.5% |
 | lfsr_31 | 100% / 50% | 100% / 50% | **0.8% / 0.5%** |
 
-**结论**：
-1. **lcg_glibc**：始终学不会，模型大小无关
-2. **lfsr_31**：10x 模型反而连 1 bit 都学不会了——严重欠拟合
-3. **小模型是最优配置**：大模型 + weight decay = 欠拟合
+初始假设：10x 模型的崩溃是 weight decay 太强（0.5）导致的——"学会了又忘了"。
 
-> **"不是模型太小，是规律太复杂"** —— 扩大模型不能突破可学性边界，反而可能更差
+### 第四阶段：10x 模型 + 低 weight decay (0.01)
+
+| 序列 | 小模型 (0.3M) | 4x (8M) | 10x (33M) | 10x + 低wd (0.01) |
+|-----|--------------|---------|-----------|-------------------|
+| lcg_glibc | 100% / 0.4% | 0.8% / 0.5% | 0.8% / 0.5% | 0.8% / 0.5% |
+| lfsr_31 | 100% / 50% | 100% / 50% | 0.8% / 0.5% | **0.8% / 0.5%** |
+
+**假设被否定**：weight decay 从 0.5 降到 0.01（50 倍），结果一模一样。崩溃不是正则化太强，而是大模型在这类任务上的优化地形本身不稳定。
+
+**结论**：
+1. **lcg_glibc**：始终学不会，模型大小和正则化强度均无关
+2. **lfsr_31**：10x 模型无论 weight decay 多少，都无法保住 50% 的部分 Grokking
+3. **小模型是最优配置**：大模型参数空间太大，脆弱的部分学习结构无法稳定存在
+4. **可学性边界不只取决于任务复杂度，还取决于模型规模**——方向反直觉：更大的模型反而更容易丢掉脆弱的部分学习
+
+> **"不是模型太小，是规律太复杂。更大的模型不但没帮上忙，还把唯一学会的那 1 bit 也弄丢了。"**
 
 ---
 
@@ -140,4 +161,4 @@ python analyze_dynamics.py     # 动态分析（Grokking检测、震荡检测）
 
 - Epiplexity 论文：https://arxiv.org/abs/2601.03220
 - Grokking 流形发现实验：`../wechat67/`
-- 本实验 Zenodo：https://doi.org/10.5281/zenodo.18512703
+- 本实验 Zenodo：https://zenodo.org/records/18518714

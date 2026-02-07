@@ -1,0 +1,16 @@
+{
+  "seq_length": 10000,
+  "context_len": 16,
+  "train_ratio": 0.3,
+  "embed_dim": 1024,
+  "num_heads": 16,
+  "num_layers": 4,
+  "lr": 0.0005,
+  "weight_decay": 0.01,
+  "batch_size": 128,
+  "total_steps": 100000,
+  "eval_every": 500,
+  "seed": 42,
+  "seq_type": "lfsr_31",
+  "num_params": 50925824
+}
