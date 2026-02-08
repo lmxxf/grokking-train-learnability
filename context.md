@@ -3,7 +3,7 @@
 **日期**：2026-02-07
 **项目**：arxiv/wechat62 (submodule of ai-theorys-study)
 **GitHub**：git@github.com:lmxxf/grokking-train-learnability.git
-**Zenodo**：https://doi.org/10.5281/zenodo.18515743
+**Zenodo**：https://doi.org/10.5281/zenodo.18524126
 
 ---
 

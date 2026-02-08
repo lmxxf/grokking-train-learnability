@@ -2,7 +2,7 @@
 
 **Authors**: Jin Yanyan (lmxxf@hotmail.com), Zhao Lei (zhaosanshi@gmail.com)
 
-**Abstract**: Classical information theory assumes observers have unlimited computational power, making pseudo-random numbers "low entropy" (seeds are only a few hundred bits). However, for computationally bounded neural networks, the same data may be "completely unlearnable noise." This paper experimentally explores the boundary of neural network learnability: from simple periodic patterns to cryptographically secure random numbers, we identify where Epiplexity (extractable structure) transitions from non-zero to zero. We train identical Transformer architectures on 6 sequences of varying complexity and find: (1) pseudo-random sequences with state space $\leq 256$ (simple LCG, 5-bit LFSR) can be perfectly learned; (2) pseudo-random with state space 2³¹ (glibc LCG) is completely unlearnable, with test accuracy equal to random guessing; (3) 31-bit LFSR exhibits **partial Grokking**—the model learns 1 bit of the sequence's pattern (50% accuracy) but cannot learn the remaining 7 bits. Further model scale ablation experiments reveal a counter-intuitive phenomenon: scaling up the model (from 0.3M to 33M parameters) not only fails to break the learnability boundary, but causes LFSR-31's partial Grokking to collapse entirely—**the larger model loses the only 1 bit the small model learned**. Reducing weight decay by 50x (from 0.5 to 0.01) cannot rescue this collapse, demonstrating the problem lies in the instability of the optimization landscape in larger models, not excessive regularization. These findings validate the core prediction of the Epiplexity paper: **information is observer-dependent; the same data presents different learnability to observers with different computational power**; and further reveal that the learnability boundary is a joint property of task and model, where the effect of model scale can be counter-intuitive.
+**Abstract**: Classical information theory assumes observers have unlimited computational power, making pseudo-random numbers "low entropy" (seeds are only a few hundred bits). However, for computationally bounded neural networks, the same data may be "completely unlearnable noise." This paper experimentally explores the boundary of neural network learnability: from simple periodic patterns to cryptographically secure random numbers, we identify where Epiplexity (extractable structure) transitions from non-zero to zero. We train identical Transformer architectures on 6 sequences of varying complexity and find: (1) pseudo-random sequences with state space $\leq 256$ (simple LCG, 5-bit LFSR) can be perfectly learned; (2) pseudo-random with state space 2³¹ (glibc LCG) is completely unlearnable, with test accuracy equal to random guessing; (3) 31-bit LFSR exhibits **partial Grokking**—the model learns 7 out of 8 bits of the sequence's pattern (50% accuracy on 256-class classification) but cannot learn the last 1 bit. Further model scale ablation experiments reveal a counter-intuitive phenomenon: scaling up the model (from 0.3M to 33M parameters) not only fails to break the learnability boundary, but causes LFSR-31's partial Grokking to collapse entirely—**the larger model loses the 7 bits the small model learned**. Reducing weight decay by 50x (from 0.5 to 0.01) cannot rescue this collapse, demonstrating the problem lies in the instability of the optimization landscape in larger models, not excessive regularization. These findings validate the core prediction of the Epiplexity paper: **information is observer-dependent; the same data presents different learnability to observers with different computational power**; and further reveal that the learnability boundary is a joint property of task and model, where the effect of model scale can be counter-intuitive.
 
 ---
 
@@ -93,7 +93,7 @@ We reuse the architecture from our previous Grokking experiments:
 
 2. **State space 2³¹ LCG is completely unlearnable**: lcg_glibc test accuracy equals random guessing (0.41% vs 0.39% baseline), while training accuracy is 100%—pure memorization, zero generalization
 
-3. **LFSR-31 exhibits partial Grokking**: 50.16% accuracy is not random; the model learned some 1-bit pattern (see Section 3.2)
+3. **LFSR-31 exhibits partial Grokking**: 50.16% accuracy is not random; the model learned 7 out of 8 bits, with the last 1 bit remaining unlearnable (see Section 3.2)
 
 4. **CSPRNG is completely unlearnable**: Even training accuracy is only 1%—it cannot even memorize
 
@@ -107,7 +107,7 @@ Possible explanations:
 - The model learned the pattern of the output's **least significant bit** (LSB)
 - Or learned some **parity** determination
 
-This suggests Grokking is not all-or-nothing, but rather **"learn as much as you can"**—the model captured the simplest 1-bit pattern in the sequence, but couldn't learn the remaining 7 bits.
+This suggests Grokking is not all-or-nothing, but rather **"learn as much as you can"**—the model learned 7 out of 8 bits, but couldn't learn the last 1 bit.
 
 **Dimension analysis supports this explanation**:
 
@@ -117,7 +117,7 @@ This suggests Grokking is not all-or-nothing, but rather **"learn as much as you
 | **lfsr_31** | **2-4 dimensions** | Extremely low—did capture some simple structure |
 | csprng | 10-14 dimensions | Medium dimension, learned nothing |
 
-LFSR-31's representation space collapsed to 2-4 dimensions, exactly matching the hypothesis of "learned 1-2 bit pattern."
+LFSR-31's representation space collapsed to 2-4 dimensions, indicating the model found an extremely compact low-dimensional structure to encode 7 bits of the pattern, with the last 1 bit beyond its capacity.
 
 ### 3.3 Training Dynamics Comparison
 
@@ -127,7 +127,7 @@ LFSR-31's representation space collapsed to 2-4 dimensions, exactly matching the
 | lcg_simple | 100% | 100% | Perfect generalization |
 | lfsr_5 | 100% | 100% | Perfect generalization |
 | lcg_glibc | **100%** | **0.41%** | Pure memorization, zero generalization |
-| lfsr_31 | 99.9% | 50.2% | Partial generalization (1 bit) |
+| lfsr_31 | 99.9% | 50.2% | Partial generalization (7/8 bit) |
 | csprng | **1.0%** | 0.33% | Even memorization failed |
 
 **lcg_glibc's "100% train + 0% test" is a textbook "memorization solution"**—the model memorized 3000 training sample input-output mappings, but there's no generalizable structure between these mappings.
@@ -158,7 +158,7 @@ In plain language: Within your computational budget, find the optimal balance be
 | lcg_simple | 256 | `x = (3x + 7) % 256` | Low (tens of bits) |
 | lfsr_5 | 32 | `x = x[-1] XOR x[-5]` | Low |
 | lcg_glibc | $2^{31}$ | Cannot find | **0** |
-| lfsr_31 | $2^{31}$ | `LSB(x) = ...` | Very low (~1 bit) |
+| lfsr_31 | $2^{31}$ | 7/8 bit partial pattern | Low (~7 bit) |
 | csprng | ∞ | Cannot find | **0** |
 
 **Epiplexity = 0 means**: Within the model's computational budget, there is no extractable structure in the data.
@@ -188,13 +188,23 @@ The model may attempt to learn in order of increasing complexity:
 2. If successful, try to learn more complex patterns
 3. If failed (insufficient computational power), stop at the current level
 
-LFSR-31's 50% accuracy = learned the first layer (1 bit), stuck at the second layer (remaining 7 bits).
+LFSR-31's 50% accuracy = learned 7 bits (precisely hitting half of 256 classes = 128 classes), stuck at the last 1 bit.
 
 This is consistent with the **two-stage Grokking** we discovered in our modular multiplication experiments:
 - Modular multiplication learned the quotient group $\mathbb{Z}_{12}$, not the complete $\mathbb{Z}_{96}$
-- LFSR-31 learned the 1-bit pattern, not the complete 8-bit pattern
+- LFSR-31 learned 7 bits of the pattern, not the complete 8-bit pattern
 
 **Unified explanation**: Grokking is layered manifold discovery; each layer requires a different computational budget.
+
+### 4.4 Same $2^{31}$ State Space: Why Can LFSR Learn but LCG Cannot?
+
+Both lcg_glibc and lfsr_31 have state spaces of $2^{31}$, yet their learnability is drastically different. This demonstrates that **state space size is not the sole determinant of learnability—the internal geometric structure of the algorithm is equally critical**.
+
+**LFSR (XOR) = Axis-Aligned**. XOR is a linear operation in $GF(2)$ space, where bits are relatively independent and data is arranged on quasi-orthogonal hyperplanes. The Transformer can capture individual bits through low-rank approximation—this is why the model learns 7/8 bits. Although LFSR's state space is large, its entropy is "axis-aligned," permitting partial extraction.
+
+**LCG (Multiplication mod $2^{31}$) = Topological Shredding**. Multiplication makes every output bit depend on all lower-order input bits, crushing what would be a smooth linear manifold into infinitely dense fragments. In the 128-dimensional embedding space, LCG's output points are indistinguishable from white noise—gradients cannot find any locally continuous "handle" to grip. LCG's entropy is "isotropic," causing severe aliasing when projected to lower dimensions.
+
+**The Physical Threshold for Grokking**: Whether the local smoothness of the manifold exceeds the sampling frequency of the model's weights. LFSR's manifold is locally smooth and sampleable; LCG's manifold is shredded by multiplication below the sampling resolution, rendering it invisible.
 
 ---
 
@@ -261,7 +271,7 @@ To test this hypothesis, we reduced the 10x model's weight decay from 0.5 to 0.0
 
 1. **lcg_glibc**: Larger models did not improve generalization; neither model scale nor regularization strength matters
 
-2. **LFSR-31 collapse is not caused by regularization**: The 10x model cannot stably maintain 50% partial Grokking regardless of weight decay. The problem lies in the instability of the optimization landscape—the parameter space is too large for the fragile 1-bit learning structure to persist
+2. **LFSR-31 collapse is not caused by regularization**: The 10x model cannot stably maintain 50% partial Grokking regardless of weight decay. The problem lies in the instability of the optimization landscape—the parameter space is too large for the fragile 7-bit learning structure to persist
 
 3. **Small model is optimal**: The 0.3M model can stably rest on the 50% saddle point; the larger model slides off
 
@@ -269,19 +279,19 @@ To test this hypothesis, we reduced the 10x model's weight decay from 0.5 to 0.0
 
 **Conclusion**: Scaling up models cannot break the learnability boundary and may actually make things worse. This contradicts the general intuition of scaling laws, but near the learnability boundary, the mathematical structure of the task matters more than model capacity.
 
-> **"It's not that the model is too small; it's that the pattern is too complex. The larger model not only didn't help—it lost the only 1 bit it had learned."**
+> **"It's not that the model is too small; it's that the pattern is too complex. The larger model not only didn't help—it lost the 7 bits it had learned."**
 
 ### 6.3 Other Limitations
 
 1. **No fine-grained exploration**: 256 and $2^{31}$ differ by 23 orders of magnitude; where exactly is the phase transition point?
 
-2. **What is LFSR-31's 1 bit**: We hypothesize it's the LSB, but haven't verified
+2. **Which bit can't LFSR-31 learn**: The specific bit that remains unlearnable has not been verified
 
 ### 6.4 Future Directions
 
 1. **Fine-grained phase transition curve**: Test LCG with state spaces $2^{10}$, $2^{15}$, $2^{20}$ to precisely locate the phase transition point
 
-2. **Dissecting LFSR-31**: Use Mechanistic Interpretability to find which bit the model learned
+2. **Dissecting LFSR-31**: Use Mechanistic Interpretability to find which bit the model cannot learn
 
 3. **Mechanism of large model collapse**: Why does the 10x model reach 50% early in training then collapse? Is there a critical parameter count beyond which partial Grokking becomes unsustainable?
 
@@ -298,11 +308,11 @@ The same pseudo-random sequence:
 We found the boundary of neural network learnability:
 - **State space $\leq 256$**: Learnable (100% test accuracy)
 - **State space = 2³¹**: Unlearnable (test accuracy = random)
-- **LFSR-31**: Partially learnable (50% = learned 1 bit)
+- **LFSR-31**: Partially learnable (50% = learned 7/8 bit)
 
 Model scale ablation experiments further reveal:
 - **Scaling up cannot break the learnability boundary**: 4x and 10x models are both ineffective on lcg_glibc
-- **Larger models perform worse**: The 10x model loses the 1-bit partial Grokking that the small model achieved
+- **Larger models perform worse**: The 10x model loses the 7-bit partial Grokking that the small model achieved
 - **Not caused by regularization**: Reducing weight decay by 50x cannot rescue the collapse
 - **Learnability boundary is a joint property of task and model**: The effect of model scale can be counter-intuitive
 
