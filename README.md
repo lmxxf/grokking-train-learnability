@@ -161,4 +161,4 @@ python analyze_dynamics.py     # 动态分析（Grokking检测、震荡检测）
 
 - Epiplexity 论文：https://arxiv.org/abs/2601.03220
 - Grokking 流形发现实验：`../wechat67/`
-- 本实验 Zenodo：https://zenodo.org/records/18524126
+- 本实验 Zenodo：https://zenodo.org/records/18524191
