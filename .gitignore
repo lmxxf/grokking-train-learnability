@@ -1,0 +1,5 @@
+# 实验产物（自己跑程序复现）
+*.npz
+*.pt
+*.png
+context.md
