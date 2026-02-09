@@ -137,6 +137,7 @@ python code/train_lcg_200k.py --output_dir results       # seq_length=200000
 6. **可学性边界是任务-模型的联合性质**：不只取决于任务复杂度，模型规模方向反直觉——更大反而更差
 7. **信息不足是 LFSR-31 的 50% 天花板的真正原因**：context_len 从 16 扩到 32/64 后，测试准确率从 50% → 99.8% → 100%——瓶颈不是模型能力，是输入信息量。更长窗口提供的模式冗余进一步消除残余误差
 8. **拓扑粉碎不可救**：lcg_glibc 数据量扩大 20 倍（10k→200k）后依然零泛化（test 0.3%），且训练集准确率从 100% 降到 22%——数据多了连记忆都记不完，流形不存在则数据量无意义
+9. **对 Scaling Law 的挑战**：当前 Scaling Law（Chinchilla 等）假设性能 = f(参数, 数据, 算力)，隐含前提是数据背后存在可学的流形。本实验揭示了三个盲区：（a）流形不存在时三个轴同时失效（LCG：20x 数据 + 100x 参数 = 0% 泛化）；（b）信息密度是独立于数据量的第四个轴（LFSR：2x 窗口 > 100x 参数）；（c）存在反向 scaling 区间（10x 模型反而丢掉小模型学会的 7 bit）
 
 ---
 
@@ -255,4 +256,4 @@ LFSR-31 的问题被窗口实验解决了（信息瓶颈）。那 lcg_glibc 呢�
 
 - Epiplexity 论文：https://arxiv.org/abs/2601.03220
 - Grokking 流形发现实验：`../wechat67/`
-- 本实验 Zenodo：https://zenodo.org/records/18532924
+- 本实验 Zenodo：https://zenodo.org/records/18538126

@@ -373,7 +373,15 @@ Data scaling experiment validates the root cause of LCG's unlearnability:
 - **Topological shredding is irreversible**: lcg_glibc data expanded 20x, test accuracy unchanged (0.3%), training accuracy dropped from 100% to 22%
 - **When no manifold exists, data is meaningless**: More data only exposed that the original "100% train" was an illusion (pure memorization)
 
-**One sentence summary**: Computational power determines what you can see in the data—but even more important than computational power is how many clues you get to see.
+Implications for Scaling Laws:
+
+Current mainstream scaling laws (Chinchilla, etc.) assume performance = $f$(parameters, data, compute), with optimal allocation among the three. Our experiments reveal three blind spots in this framework:
+
+- **Unstated prerequisite**: The power-law relationships in scaling laws hold only when the data contains a learnable manifold. When the manifold is topologically shredded (as with LCG), all three axes fail simultaneously—20x data + 100x parameters = 0% generalization.
+- **Information density as a fourth axis**: The current framework conflates two distinct dimensions under "data": the number of samples and the information density per sample. The LFSR-31 experiment shows that 2x window (information density) outperforms 100x parameters—information density is a fourth scaling dimension independent of data volume.
+- **Inverse scaling regions exist**: Current scaling laws predict monotonically increasing performance with scale. We observe non-monotonic behavior near the learnability boundary—the 10x model loses the 7 bits that the small model learned. This suggests scaling laws may require correction in boundary regions.
+
+**One sentence summary**: Computational power determines what you can see in the data—but even more important than computational power is how many clues you get to see, and whether learnable structure exists behind those clues.
 
 ---
 
