@@ -2,7 +2,7 @@
 
 **Authors**: Jin Yanyan (lmxxf@hotmail.com), Zhao Lei (zhaosanshi@gmail.com)
 
-**Abstract**: Classical information theory assumes observers have unlimited computational power, making pseudo-random numbers "low entropy" (seeds are only a few hundred bits). However, for computationally bounded neural networks, the same data may be "completely unlearnable noise." This paper experimentally explores the boundary of neural network learnability: from simple periodic patterns to cryptographically secure random numbers, we identify where Epiplexity (extractable structure) transitions from non-zero to zero. We train identical Transformer architectures on 6 sequences of varying complexity and find: (1) pseudo-random sequences with state space $\leq 256$ (simple LCG, 5-bit LFSR) can be perfectly learned; (2) pseudo-random with state space 2³¹ (glibc LCG) is completely unlearnable, with test accuracy equal to random guessing; (3) 31-bit LFSR exhibits **partial Grokking**—the model learns 7 out of 8 bits of the sequence's pattern (50% accuracy on 256-class classification) but cannot learn the last 1 bit. Further model scale ablation experiments reveal a counter-intuitive phenomenon: scaling up the model (from 0.3M to 33M parameters) not only fails to break the learnability boundary, but causes LFSR-31's partial Grokking to collapse entirely—**the larger model loses the 7 bits the small model learned**. Reducing weight decay by 50x (from 0.5 to 0.01) cannot rescue this collapse, demonstrating the problem lies in the instability of the optimization landscape in larger models, not excessive regularization. These findings validate the core prediction of the Epiplexity paper: **information is observer-dependent; the same data presents different learnability to observers with different computational power**; and further reveal that the learnability boundary is a joint property of task and model, where the effect of model scale can be counter-intuitive.
+**Abstract**: Classical information theory assumes observers have unlimited computational power, making pseudo-random numbers "low entropy" (seeds are only a few hundred bits). However, for computationally bounded neural networks, the same data may be "completely unlearnable noise." This paper experimentally explores the boundary of neural network learnability: from simple periodic patterns to cryptographically secure random numbers, we identify where Epiplexity (extractable structure) transitions from non-zero to zero. We train identical Transformer architectures on 6 sequences of varying complexity and find: (1) pseudo-random sequences with state space $\leq 256$ (simple LCG, 5-bit LFSR) can be perfectly learned; (2) pseudo-random with state space 2³¹ (glibc LCG) is completely unlearnable, with test accuracy equal to random guessing; (3) 31-bit LFSR exhibits **partial Grokking**—the model learns 7 out of 8 bits of the sequence's pattern (50% accuracy on 256-class classification) but cannot learn the last 1 bit. Further model scale ablation experiments reveal a counter-intuitive phenomenon: scaling up the model (from 0.3M to 33M parameters) not only fails to break the learnability boundary, but causes LFSR-31's partial Grokking to collapse entirely—**the larger model loses the 7 bits the small model learned**. Reducing weight decay by 50x (from 0.5 to 0.01) cannot rescue this collapse, demonstrating the problem lies in the instability of the optimization landscape in larger models, not excessive regularization. A context window expansion experiment finally reveals the true cause of the 50% ceiling: increasing context_len from 16 to 32/64, LFSR-31's test accuracy jumps from 50% → 99.8% → 100%—**the bottleneck was not model capacity, but input information**. The additional pattern redundancy from longer windows eliminates residual errors. A data scaling experiment further validates the root cause of LCG's unlearnability: expanding lcg_glibc's data by 20x (10k→200k) still yields zero generalization (test 0.3%), while training accuracy drops from 100% to 22%—**when no learnable manifold exists, more data is meaningless**. These findings validate the core prediction of the Epiplexity paper: **information is observer-dependent; the same data presents different learnability to observers with different computational power**; and further reveal that the learnability boundary is a joint property of task complexity, model capacity, and input information.
 
 ---
 
@@ -47,7 +47,7 @@ We designed 6 sequence generators ranging from simple to complex:
 | lfsr_31 | 31-bit LFSR (polynomial $x^{31} + x^3 + 1$) | $2^{31}$ | Boundary |
 | csprng | Python `secrets.randbits` (cryptographically secure) | $\infty$ | No |
 
-**Task**: Given the first 16 tokens of a sequence, predict the 17th.
+**Task**: Given the first $k$ tokens of a sequence, predict the $(k+1)$-th (baseline experiments $k=16$, window expansion experiments $k=32, 64$).
 
 ### 2.2 Model Configuration
 
@@ -281,13 +281,61 @@ To test this hypothesis, we reduced the 10x model's weight decay from 0.5 to 0.0
 
 > **"It's not that the model is too small; it's that the pattern is too complex. The larger model not only didn't help—it lost the 7 bits it had learned."**
 
-### 6.3 Other Limitations
+### 6.3 Context Window Experiment: Information Bottleneck Is the Real Cause
+
+Phases 2-4 proved that scaling up models cannot break the 50% ceiling. But this leaves a question: is the ceiling due to insufficient model capacity, or insufficient input information?
+
+**Information analysis**: LFSR-31 outputs 8 bits per step, with 7-bit overlap between adjacent steps (since LFSR shifts by 1 bit per step). At context_len=16, independent information = 8 + 15×1 = 23 bits < 31-bit internal state. Even with perfect reasoning ability, the model cannot reconstruct 31-bit state from 23 bits of information—**a hard information-theoretic limit**.
+
+At context_len=32, independent information = 8 + 31×1 = 39 bits > 31 bits, theoretically sufficient to reconstruct the full internal state.
+
+**Results**:
+
+| Configuration | context_len | Independent Information | Test Accuracy |
+|--------------|-------------|------------------------|---------------|
+| Small model (0.3M) | 16 | ~24 bits < 31 bits | 50% |
+| Small model (0.3M) | **32** | ~39 bits > 31 bits | **99.8%** |
+| Small model (0.3M) | **64** | ~71 bits >> 31 bits | **100%** |
+
+**Hypothesis perfectly validated.** Once the window provides sufficient information, the 50% ceiling vanishes instantly. The pattern redundancy at context_len=64 further eliminates the 0.2% residual error from context_len=32—information shows a saturation effect, but additional redundancy still provides marginal benefit.
+
+This result forms a perfect closed loop with Phases 2-4:
+- Scale up model (0.3M → 33M): Ineffective, even harmful
+- Reduce regularization (wd 0.5 → 0.01): Ineffective
+- **Expand window (16 → 32 → 64): 50% → 99.8% → 100%, directly solved**
+
+**Conclusion**: LFSR-31's 50% ceiling is not a model capacity problem—it is an information bottleneck. What was needed was more information, not more parameters.
+
+> **"It's not that the model is too dumb, nor that the pattern is too hard—you simply didn't give it enough clues."**
+
+### 6.4 Data Scaling Experiment: Topological Shredding Is Irreversible
+
+Phase 5 proved that LFSR-31's 50% ceiling can be broken by expanding the context window—because the problem was insufficient information. But what about lcg_glibc's unlearnability? Is it insufficient data, or does no learnable manifold exist?
+
+We expanded lcg_glibc's sequence length from 10,000 to 200,000 (training samples from ~3,000 to ~60,000), keeping all other parameters identical:
+
+| Configuration | seq_length | Training Samples | Train Acc | Test Acc |
+|--------------|-----------|-----------------|-----------|----------|
+| Original (0.3M) | 10,000 | ~3,000 | 100% | 0.4% |
+| 20x data (0.3M) | 200,000 | ~60,000 | **22%** | **0.3%** |
+
+**More data actually made things worse**—the original 3,000 samples could be memorized (train 100%), but 60,000 exceeds the model's memorization capacity (train 22%). Test accuracy remains at random baseline throughout.
+
+This result reveals the truth behind Phase 1's lcg_glibc "100% train + 0.4% test": that 100% training accuracy was not "learning the pattern"—it was 3,000 samples fitting within the model's memorization capacity. When data exceeds this capacity (60,000 >> memorization limit), even memorization fails.
+
+**The contrast with LFSR forms a perfect closed loop**:
+- **LFSR-31**: Expand window (more information) → 50% → 100%. The problem was insufficient information; the manifold exists but was incompletely observed
+- **lcg_glibc**: Expand data (more samples) → still 0%. The problem is no learnable manifold exists; no amount of data can create structure where there is none
+
+> **"More data won't help—it's not that the clues are insufficient; the answer simply doesn't exist."**
+
+### 6.5 Other Limitations
 
 1. **No fine-grained exploration**: 256 and $2^{31}$ differ by 23 orders of magnitude; where exactly is the phase transition point?
 
 2. **Which bit can't LFSR-31 learn**: The specific bit that remains unlearnable has not been verified
 
-### 6.4 Future Directions
+### 6.6 Future Directions
 
 1. **Fine-grained phase transition curve**: Test LCG with state spaces $2^{10}$, $2^{15}$, $2^{20}$ to precisely locate the phase transition point
 
@@ -314,9 +362,18 @@ Model scale ablation experiments further reveal:
 - **Scaling up cannot break the learnability boundary**: 4x and 10x models are both ineffective on lcg_glibc
 - **Larger models perform worse**: The 10x model loses the 7-bit partial Grokking that the small model achieved
 - **Not caused by regularization**: Reducing weight decay by 50x cannot rescue the collapse
-- **Learnability boundary is a joint property of task and model**: The effect of model scale can be counter-intuitive
 
-**One sentence summary**: Computational power determines what you can see in the data—but more computational power does not necessarily mean seeing more.
+Context window expansion reveals the true cause of the 50% ceiling:
+- **Information bottleneck**: Independent information at context_len=16 (~24 bits) is insufficient to reconstruct the 31-bit internal state
+- **Window expansion directly solves it**: context_len 16→32→64, test accuracy 50% → 99.8% → 100%
+- **Information saturation effect**: context_len=32 already breaks the ceiling; the extra redundancy at 64 eliminates the last 0.2% residual
+- **What was needed was information, not parameters**: Scaling up models was ineffective; expanding the window directly solved the problem
+
+Data scaling experiment validates the root cause of LCG's unlearnability:
+- **Topological shredding is irreversible**: lcg_glibc data expanded 20x, test accuracy unchanged (0.3%), training accuracy dropped from 100% to 22%
+- **When no manifold exists, data is meaningless**: More data only exposed that the original "100% train" was an illusion (pure memorization)
+
+**One sentence summary**: Computational power determines what you can see in the data—but even more important than computational power is how many clues you get to see.
 
 ---
 

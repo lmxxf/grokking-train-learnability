@@ -2,7 +2,7 @@
 
 ## Basic Information
 
-**DOI**: 10.5281/zenodo.18524191
+**DOI**: 10.5281/zenodo.18532924
 
 **Resource type**: Publication / Preprint
 
@@ -21,22 +21,30 @@ Classical information theory assumes observers have unlimited computational powe
 We train identical Transformer architectures on 6 sequences of varying complexity and find:
 (1) Pseudo-random sequences with state space ≤256 (simple LCG, 5-bit LFSR) can be perfectly learned (100% test accuracy);
 (2) Pseudo-random with state space 2³¹ (glibc LCG) is completely unlearnable (test accuracy = random guessing);
-(3) 31-bit LFSR exhibits partial Grokking—the model learns 1 bit of the sequence's pattern (50% accuracy) but cannot learn the remaining 7 bits.
+(3) 31-bit LFSR exhibits partial Grokking—the model learns 7 out of 8 bits (50% accuracy on 256-class classification).
 
 Model scale ablation (0.3M → 8M → 33M parameters) shows:
 - Larger models do NOT break the learnability boundary
-- 10x model loses the 1-bit partial Grokking that the small model achieved
-- Reducing weight decay by 50x (from 0.5 to 0.01) cannot rescue this collapse
-- The problem is optimization landscape instability in larger models, not excessive regularization
-- Conclusion: "It's not that the model is too small; it's that the pattern is too complex. The larger model not only didn't help—it lost the only 1 bit it had learned."
+- 10x model loses the 7-bit partial Grokking that the small model achieved
+- Reducing weight decay by 50x cannot rescue this collapse
 
-These findings validate the core prediction of the Epiplexity paper (Finzi et al., 2026): information is observer-dependent; the same data presents different learnability to observers with different computational power. Furthermore, the learnability boundary is a joint property of task and model, where the effect of model scale can be counter-intuitive.
+Context window expansion reveals the true cause of LFSR-31's 50% ceiling:
+- context_len 16→32→64: test accuracy 50% → 99.8% → 100%
+- The bottleneck was not model capacity, but input information (~24 bits independent info < 31-bit internal state)
+- "100x more parameters couldn't solve what 2x more context solved instantly"
+
+Data scaling experiment validates LCG's unlearnability:
+- Expanding lcg_glibc data by 20x (10k→200k): test accuracy unchanged (0.3%), training accuracy drops from 100% to 22%
+- When no learnable manifold exists, more data is meaningless
+
+These findings validate the core prediction of the Epiplexity paper (Finzi et al., 2026): information is observer-dependent. The learnability boundary is a joint property of task complexity, model capacity, and input information.
 
 Key contributions:
 - Experimental identification of the learnability phase transition boundary (between state space 256 and 2³¹)
-- Discovery of "partial Grokking" phenomenon in LFSR-31 (learning only 1 bit of 8)
-- Model scale ablation proving boundary is task property, not capacity limitation
-- Weight decay ablation ruling out regularization as cause of large model collapse
+- Discovery of "partial Grokking" in LFSR-31 (learning 7 of 8 bits)
+- Context window experiment proving 50% ceiling is information bottleneck, not capacity limitation (50%→99.8%→100%)
+- Data scaling experiment proving LCG's topological shredding is irreversible (20x data, still zero generalization)
+- Model scale ablation proving larger models can be worse near the boundary
 - Connection between Epiplexity theory and Grokking manifold discovery
 
 Code and data: https://github.com/lmxxf/grokking-train-learnability
@@ -61,11 +69,13 @@ Code and data: https://github.com/lmxxf/grokking-train-learnability
 - Model Scaling
 - Weight Decay
 - Optimization Landscape
-- Underfitting
+- Context Window
+- Information Bottleneck
+- Topological Shredding
 
 **Languages**: English
 
-**Version**: 2.0.0
+**Version**: 3.0.0
 
 **Publisher**: Zenodo
 
